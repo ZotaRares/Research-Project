@@ -1,0 +1,5 @@
+config,seed,epochs,n_train,threshold,test_auc,test_balanced_acc,test_sensitivity,test_specificity
+A_baseline,0,2,800,0.13999999999999999,0.7836,0.696,0.6,0.792
+B_augment,0,2,800,0.29,0.7957599999999999,0.732,0.6,0.864
+C_weights,0,2,800,0.42999999999999994,0.7788,0.706,0.58,0.832
+D_both,0,2,800,0.5199999999999999,0.79728,0.7,0.64,0.76
