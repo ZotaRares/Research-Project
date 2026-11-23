@@ -98,3 +98,22 @@ def run_experiment(df, config_name, seed, device, epochs=5, n_train=None, n_eval
            "n_train": len(train_df), "threshold": threshold}
     row.update({f"test_{k}": v for k, v in test_scores.items()})
     return row
+
+def run_external(df_ext, config_name, seed, threshold, device, batch_size=32,
+                 model_dir="../models", tag=""):
+    """Test a saved model on the external data, using the cutoff chosen on HAM10000 validation."""
+    # Build the same model and load the weights we saved after training
+    model = build_model().to(device)
+    path = Path(model_dir) / f"{tag}{config_name}_seed{seed}.pt"
+    model.load_state_dict(torch.load(path, map_location=device))
+
+    # External images get the simple preparation (no augmentation)
+    loader = DataLoader(SkinDataset(df_ext, get_transforms(augment=False)), batch_size=batch_size)
+    probs, labels = predict_probs(model, loader, device)
+
+    # Use the cutoff from the internal run, unchanged (no tuning on external data)
+    ext_scores = scores(probs, labels, threshold)
+
+    row = {"config": config_name, "seed": seed}
+    row.update({f"ext_{k}": v for k, v in ext_scores.items()})
+    return row

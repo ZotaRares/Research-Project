@@ -47,3 +47,24 @@ class SkinDataset(Dataset):
         row = self.df.iloc[i]
         img = Image.open(row["path"]).convert("RGB")
         return self.transform(img), int(row["label"])
+
+def load_pad_ufes_20(data_dir):
+    """Read PAD-UFES-20 (smartphone images) and make it look like our HAM10000 table."""
+    data_dir = Path(data_dir)
+    meta_file = next(data_dir.rglob("metadata.csv"))              # find the table, in any subfolder
+    df = pd.read_csv(meta_file)
+
+    # Find all the .png images, using the file name (without .png) as the key
+    paths = {p.stem: p for p in data_dir.rglob("*.png")}
+    df["image_id"] = df["img_id"].astype(str).map(lambda s: Path(s).stem)   # works with or without ".png"
+    df["path"] = df["image_id"].map(paths)
+
+    # Keep only the four classes that also exist in HAM10000
+    #   MEL, BCC = malignant (1); NEV, SEK = benign (0)
+    df = df[df["diagnostic"].isin(["MEL", "BCC", "NEV", "SEK"])].copy()
+    df["label"] = df["diagnostic"].isin(["MEL", "BCC"]).astype(int)
+    df["dx"] = df["diagnostic"]
+    df["split"] = "external"                                      # the whole set is used only for testing
+
+    assert df["path"].notna().all(), "some images were not found"  # stop if an image is missing
+    return df[["image_id", "lesion_id", "dx", "label", "split", "path"]]
