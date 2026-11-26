@@ -17,10 +17,10 @@ CONFIGS = {
 
 
 def predict_probs(model, loader, device):
-    """Return the chance of 'malignant' for every image, plus the true labels."""
-    model.eval()                                      # test mode
+    # Return the chance of 'malignant' for every image, plus the true labels.
+    model.eval()                                      
     probs, labels = [], []
-    with torch.no_grad():                             # no learning, only predicting
+    with torch.no_grad():                             
         for x, y in loader:
             p = torch.softmax(model(x.to(device)), dim=1)[:, 1].cpu().numpy()
             probs.append(p)
@@ -29,7 +29,7 @@ def predict_probs(model, loader, device):
 
 
 def find_threshold(probs, labels):
-    """Find the cutoff (between 0.05 and 0.95) that gives the best balanced accuracy."""
+    # Find the cutoff (between 0.05 and 0.95) that gives the best balanced accuracy
     best_t, best_score = 0.5, -1.0
     for t in np.linspace(0.05, 0.95, 91):             # try many cutoffs
         score = balanced_accuracy_score(labels, (probs >= t).astype(int))
@@ -39,10 +39,10 @@ def find_threshold(probs, labels):
 
 
 def scores(probs, labels, threshold):
-    """Calculate the four scores for a given cutoff."""
+    #Calculate the four scores for a given cutoff
     preds = (probs >= threshold).astype(int)          # malignant if chance >= cutoff
     return {
-        "auc": roc_auc_score(labels, probs),                      # does not depend on the cutoff
+        "auc": roc_auc_score(labels, probs),                      
         "balanced_acc": balanced_accuracy_score(labels, preds),
         "sensitivity": recall_score(labels, preds, pos_label=1),  # malignant lesions found
         "specificity": recall_score(labels, preds, pos_label=0),  # benign lesions recognized
@@ -51,16 +51,15 @@ def scores(probs, labels, threshold):
 
 def run_experiment(df, config_name, seed, device, epochs=5, n_train=None, n_eval=None,
                    batch_size=32, model_dir="../models", tag=""):
-    """Train one configuration with one seed and return its scores on the test set."""
+    # Train one configuration with one seed and return its scores on the test set.
     cfg = CONFIGS[config_name]
-    set_seed(seed)                                    # same seed = same result
+    set_seed(seed)                                   
 
     # Take the three parts of the split
     train_df = df[df["split"] == "train"]
     val_df = df[df["split"] == "val"]
     test_df = df[df["split"] == "test"]
 
-    # Optional: use fewer images (for a quick test on a CPU)
     if n_train:
         train_df = train_df.sample(min(n_train, len(train_df)), random_state=seed)
     if n_eval:
@@ -101,17 +100,17 @@ def run_experiment(df, config_name, seed, device, epochs=5, n_train=None, n_eval
 
 def run_external(df_ext, config_name, seed, threshold, device, batch_size=32,
                  model_dir="../models", tag=""):
-    """Test a saved model on the external data, using the cutoff chosen on HAM10000 validation."""
-    # Build the same model and load the weights we saved after training
+    #Test a saved model on the external data, using the cutoff chosen on HAM10000 validation.
+
     model = build_model().to(device)
     path = Path(model_dir) / f"{tag}{config_name}_seed{seed}.pt"
     model.load_state_dict(torch.load(path, map_location=device))
 
-    # External images get the simple preparation (no augmentation)
+    # External images get the simple preparation 
     loader = DataLoader(SkinDataset(df_ext, get_transforms(augment=False)), batch_size=batch_size)
     probs, labels = predict_probs(model, loader, device)
 
-    # Use the cutoff from the internal run, unchanged (no tuning on external data)
+    # Use the cutoff from the internal run, unchanged 
     ext_scores = scores(probs, labels, threshold)
 
     row = {"config": config_name, "seed": seed}
